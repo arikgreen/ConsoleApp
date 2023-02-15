@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace ConsoleApp
 {
@@ -72,7 +73,7 @@ namespace ConsoleApp
 
                     // print all database's tables
                     foreach (var table in ImportedObjects)
-                    {                        
+                    {
                         if (table.ParentType == database.Type)
                         {
                             if (table.ParentName == database.Name)
@@ -102,17 +103,18 @@ namespace ConsoleApp
         /// <summary>
         /// Clear imported string
         /// </summary>
-        /// <param name="value"></param>
+        /// <param name="sValue"></param>
         /// <returns></returns>
-        private string ClearImportedData(string value)
+        private string ClearImportedData(string sValue)
         {
-            value = value.Trim().Length != 0 ? value.
-                Trim(new Char[] { ' ', '\t' }) : "";
+            Regex rgx = new Regex(@"[\s\t\n\r(.*:)]");
+            
+            sValue = rgx.Replace(sValue, "");
 
             //value = value.Trim().Length != 0 ? value.Trim().Replace(" ", "").
             //    Replace(Environment.NewLine, "") : "";
 
-            return value;
+            return sValue;
         }
     }
 
