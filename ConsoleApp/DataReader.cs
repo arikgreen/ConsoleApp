@@ -1,53 +1,50 @@
-﻿namespace ConsoleApp
-{
-    using System;
-    using System.Collections.Generic;
-    using System.Text;
-    using System.IO;
-    using System.Linq;
-    using System.Threading.Tasks;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
+namespace ConsoleApp
+{
     public class DataReader
     {
         IEnumerable<ImportedObject> ImportedObjects;
 
-        public void ImportAndPrintData(string fileToImport, bool printData = true)
+        public void ImportAndPrintData(string fileToImport)
         {
-            ImportedObjects = new List<ImportedObject>() { new ImportedObject() };
+            ImportedObjects = new List<ImportedObject>() { 
+                new ImportedObject() };
 
             var streamReader = new StreamReader(fileToImport);
 
-            var importedLines = new List<string>();
             while (!streamReader.EndOfStream)
             {
-                var line = streamReader.ReadLine();
-                importedLines.Add(line);
+                string line = streamReader.ReadLine();
+                var values = line.Split(';');
+                // check if line is correct, must include 7 columns
+                if (values.Count() == 7)
+                {
+                    if (ClearImportedData(values[0]) == null)
+                    {
+                        Console.WriteLine("Error");
+                    }
+
+                    var importedObject = new ImportedObject
+                    {
+                        Type = ClearImportedData(values[0]).ToUpper(),
+                        Name = ClearImportedData(values[1]),
+                        Schema = ClearImportedData(values[2]),
+                        ParentName = ClearImportedData(values[3]),
+                        ParentType = ClearImportedData(values[4]).ToUpper(),
+                        DataType = ClearImportedData(values[5]).ToUpper(),
+                        IsNullable = ClearImportedData(values[6])
+                    };
+                    ((List<ImportedObject>)ImportedObjects).Add(importedObject);
+                }
             }
 
-            for (int i = 0; i <= importedLines.Count; i++)
-            {
-                var importedLine = importedLines[i];
-                var values = importedLine.Split(';');
-                var importedObject = new ImportedObject();
-                importedObject.Type = values[0];
-                importedObject.Name = values[1];
-                importedObject.Schema = values[2];
-                importedObject.ParentName = values[3];
-                importedObject.ParentType = values[4];
-                importedObject.DataType = values[5];
-                importedObject.IsNullable = values[6];
-                ((List<ImportedObject>)ImportedObjects).Add(importedObject);
-            }
-
-            // clear and correct imported data
-            foreach (var importedObject in ImportedObjects)
-            {
-                importedObject.Type = importedObject.Type.Trim().Replace(" ", "").Replace(Environment.NewLine, "").ToUpper();
-                importedObject.Name = importedObject.Name.Trim().Replace(" ", "").Replace(Environment.NewLine, "");
-                importedObject.Schema = importedObject.Schema.Trim().Replace(" ", "").Replace(Environment.NewLine, "");
-                importedObject.ParentName = importedObject.ParentName.Trim().Replace(" ", "").Replace(Environment.NewLine, "");
-                importedObject.ParentType = importedObject.ParentType.Trim().Replace(" ", "").Replace(Environment.NewLine, "");
-            }
+            // clear imported data - remove nullable rows and header
+            ImportedObjects = ImportedObjects.Where(o => o.Type != null 
+                && o.Type != "TYPE").ToList();
 
             // assign number of children
             for (int i = 0; i < ImportedObjects.Count(); i++)
@@ -59,7 +56,8 @@
                     {
                         if (impObj.ParentName == importedObject.Name)
                         {
-                            importedObject.NumberOfChildren = 1 + importedObject.NumberOfChildren;
+                            importedObject.NumberOfChildren = 1 
+                                + importedObject.NumberOfChildren;
                         }
                     }
                 }
@@ -69,21 +67,24 @@
             {
                 if (database.Type == "DATABASE")
                 {
-                    Console.WriteLine($"Database '{database.Name}' ({database.NumberOfChildren} tables)");
+                    Console.WriteLine($"Database '{database.Name}' (" +
+                        $"{database.NumberOfChildren} tables)");
 
                     // print all database's tables
                     foreach (var table in ImportedObjects)
-                    {
-                        if (table.ParentType.ToUpper() == database.Type)
+                    {                        
+                        if (table.ParentType == database.Type)
                         {
                             if (table.ParentName == database.Name)
                             {
-                                Console.WriteLine($"\tTable '{table.Schema}.{table.Name}' ({table.NumberOfChildren} columns)");
+                                Console.WriteLine($"\tTable '{table.Schema}." +
+                                    $"{table.Name}' ({table.NumberOfChildren} " +
+                                    $"columns)");
 
                                 // print all table's columns
                                 foreach (var column in ImportedObjects)
                                 {
-                                    if (column.ParentType.ToUpper() == table.Type)
+                                    if (column.ParentType == table.Type)
                                     {
                                         if (column.ParentName == table.Name)
                                         {
@@ -96,30 +97,37 @@
                     }
                 }
             }
+        }
 
-            Console.ReadLine();
+        /// <summary>
+        /// Clear imported string
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        private string ClearImportedData(string value)
+        {
+            value = value.Trim().Length != 0 ? value.
+                Trim(new Char[] { ' ', '\t' }) : "";
+
+            //value = value.Trim().Length != 0 ? value.Trim().Replace(" ", "").
+            //    Replace(Environment.NewLine, "") : "";
+
+            return value;
         }
     }
 
     class ImportedObject : ImportedObjectBaseClass
     {
-        public string Name
-        {
-            get;
-            set;
-        }
-        public string Schema;
+        public string Schema { get; set; }
 
-        public string ParentName;
-        public string ParentType
-        {
-            get; set;
-        }
+        public string ParentName { get; set; }
+        
+        public string ParentType { get; set; }
 
         public string DataType { get; set; }
         public string IsNullable { get; set; }
 
-        public double NumberOfChildren;
+        public double NumberOfChildren { get; set; }
     }
 
     class ImportedObjectBaseClass
